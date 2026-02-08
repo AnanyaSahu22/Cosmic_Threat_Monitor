@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cosmic Threat Monitor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&family=Open+Sans:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { 
+      font-family: 'Open Sans', sans-serif; 
+      background: linear-gradient(135deg, #0a0a2e 0%, #1a0033 100%); 
+      color: #e0e0ff; 
+      margin: 0; 
+      padding: 20px; 
+      min-height: 100vh;
+    }
+    h1 { 
+      font-family: 'Roboto', sans-serif; 
+      font-weight: 300; 
+      font-size: clamp(1.8em, 5vw, 2.5em); 
+      text-align: center; 
+      margin-bottom: 10px; 
+      color: #fff; 
+      letter-spacing: 1px; 
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+    #threatChart { 
+      max-width: 900px; 
+      margin: 20px auto; 
+      background: rgba(255,255,255,0.1); 
+      backdrop-filter: blur(10px); 
+      border-radius: 15px; 
+      padding: 25px; 
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    #threats { 
+      max-width: 900px; 
+      margin: 20px auto; 
+      display: grid; 
+      gap: 15px;
+    }
+    .threat { 
+      background: rgba(255,100,100,0.2); 
+      margin: 0; 
+      padding: 20px; 
+      border-radius: 12px; 
+      border-left: 5px solid #ff4444; 
+      font-style: italic; 
+      font-size: 1.1em;
+      animation: fadeIn 0.5s ease-in;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    #lastUpdate { 
+      text-align: center; 
+      font-size: 0.95em; 
+      color: #aaa; 
+      font-family: 'Roboto', sans-serif; 
+      margin-top: 20px;
+    }
+    @media (max-width: 768px) { body { padding: 10px; } #threatChart { padding: 15px; } }
+  </style>
+</head>
+<body>
+  <h1>🌌 Cosmic Threat Monitor</h1>
+  <canvas id="threatChart"></canvas>
+  <div id="threats">Loading live NASA data...</div>
+  <p id="lastUpdate">Syncing...</p>
+
+  <script>
+    let chart;
+    async function loadThreats() {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const res = await fetch(`/api/threats?date=${today}`);
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        const data = await res.json();
+        document.getElementById('lastUpdate').textContent = `Last NASA sync: ${new Date().toLocaleString('en-IN')}`;
+        
+        // Destroy old chart
+        if (chart) chart.destroy();
+        
+        // New chart with top 10 threats
+        const ctx = document.getElementById('threatChart').getContext('2d');
+        chart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: data.threats.slice(0,10).map(t => t.name.length > 20 ? t.name.slice(0,17)+'...' : t.name),
+            datasets: [{
+              label: 'Diameter (km)',
+              data: data.threats.slice(0,10).map(t => parseFloat(t.size.toFixed(2))),
+              backgroundColor: 'rgba(255, 99, 132, 0.8)',
+              borderColor: 'rgba(255, 99, 132, 1)',
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: { 
+              y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' } },
+              x: { grid: { color: 'rgba(255,255,255,0.1)' } }
+            },
+            plugins: { legend: { labels: { color: '#e0e0ff' } } }
+          }
+        });
+        
+        // Update threat list
+        const threatsDiv = document.getElementById('threats');
+        if (data.threats.length === 0) {
+          threatsDiv.innerHTML = '<div class="threat" style="background:rgba(100,200,100,0.3);border-left-color:#44ff44;">No hazardous asteroids today! 🌟</div>';
+        } else {
+          threatsDiv.innerHTML = data.threats.map(t => 
+            `<div class="threat">
+              <strong>${t.name}</strong><br>
+              Size: ${t.size.toFixed(2)} km | 
+              Closest: ${parseFloat(t.closeApproach || 0).toLocaleString()} km | 
+              <span style="color:#ff6666;">⚠️ Hazardous</span>
+            </div>`
+          ).join('');
+        }
+      } catch (err) {
+        document.getElementById('threats').innerHTML = 
+          `<div class="threat" style="background:rgba(255,200,100,0.3);border-left-color:#ffaa00;">
+            Sync issue: ${err.message}. Retrying in 60s...
+          </div>`;
+        console.error(err);
+      }
+    }
+    
+    // Load immediately and auto-sync
+    loadThreats();
+    setInterval(loadThreats, 60000);
+  </script>
+</body>
+</html>

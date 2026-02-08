@@ -1,0 +1,18 @@
+-- Schema for threats table
+CREATE TABLE threats (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255),
+  size_km DECIMAL,
+  risk_level VARCHAR(50),
+  approach_date DATE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Node.js example to save/query
+const Database = require('@replit/database');
+const db = new Database();
+
+app.post('/api/save-threat', async (req, res) => {
+  await db.set(`threat:${req.body.name}`, req.body);
+  res.json({ saved: true });
+});
